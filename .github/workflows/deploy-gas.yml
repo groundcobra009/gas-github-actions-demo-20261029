@@ -38,11 +38,32 @@ jobs:
             echo "::error::シークレット CLASPRC_JSON_BASE64 が見つかりません"
             exit 1
           fi
-          printf '%s' "$CLASPRC_B64" | tr -d ' \r\n' | base64 -d > ~/.clasprc.json \
-            || { echo "::error::CLASPRC_JSON_BASE64 を base64 としてデコードできません"; exit 1; }
-          chmod 600 ~/.clasprc.json
-          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json', 'utf8'))" \
-            || { echo "::error::デコード結果が JSON として読めません（~/.clasprc.json を base64 したものか確認）"; exit 1; }
+          # base64 / base64url / パディング欠け / 前後の引用符 / JSON そのまま、のどれでも受ける。
+          # ログには形式だけ出し、中身は出さない。
+          node <<'JS'
+          const fs = require('fs');
+          let s = process.env.CLASPRC_B64.trim().replace(/^['"]|['"]$/g, '').trim();
+          let json, kind;
+          if (s.startsWith('{')) {
+            json = s; kind = 'JSON そのまま';
+          } else {
+            const b = s.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
+            if (!/^[A-Za-z0-9+/]*$/.test(b)) {
+              console.log('::error::CLASPRC_JSON_BASE64 に base64 で使わない文字が含まれています');
+              process.exit(1);
+            }
+            json = Buffer.from(b + '='.repeat((4 - b.length % 4) % 4), 'base64').toString('utf8').replace(/^﻿/, '');
+            kind = 'base64';
+          }
+          let parsed;
+          try { parsed = JSON.parse(json); } catch (e) {
+            console.log(`::error::CLASPRC_JSON_BASE64 を ${kind} として読みましたが JSON になりません（~/.clasprc.json の中身か、それを base64 したものを登録してください）`);
+            process.exit(1);
+          }
+          const format = parsed.tokens ? 'clasp v3 形式' : parsed.token ? 'clasp v2 形式' : '不明な形式';
+          console.log(`clasprc: ${kind} として読み込み（${format}）`);
+          fs.writeFileSync(process.env.HOME + '/.clasprc.json', JSON.stringify(parsed), { mode: 0o600 });
+          JS
 
       - name: Stamp build info
         run: |
