@@ -1,0 +1,71 @@
+name: Deploy GAS with clasp
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - 'src/**'
+      - '.clasp.json'
+      - '.github/workflows/deploy-gas.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-gas
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@3.4.1
+
+      # ~/.clasprc.json の中身（clasp login 後のファイル）をシークレットから復元する。
+      # シークレット名は CLASPRC_JSON を想定。別名で登録している場合のために候補も見る。
+      - name: Write ~/.clasprc.json
+        env:
+          CLASPRC: ${{ secrets.CLASPRC_JSON || secrets.CLASPRC || secrets.CLASP_CREDENTIALS || secrets.CLASP_TOKEN }}
+        run: |
+          if [ -z "$CLASPRC" ]; then
+            echo "::error::clasp の認証情報シークレットが見つかりません（CLASPRC_JSON に ~/.clasprc.json の中身を登録してください）"
+            exit 1
+          fi
+          printf '%s' "$CLASPRC" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json', 'utf8'))" \
+            || { echo "::error::シークレットの中身が JSON として読めません"; exit 1; }
+
+      - name: Stamp build info
+        run: |
+          cat > src/BuildInfo.js <<EOF
+          // GitHub Actions がデプロイ時に上書きする。ローカルではこの値のまま。
+          const BUILD_INFO = {
+            commit: '${GITHUB_SHA::7}',
+            deployedAt: '$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')',
+          };
+          EOF
+
+      - name: clasp push
+        run: clasp push --force
+
+      # DEPLOYMENT_ID シークレットがあれば同じデプロイ（同じ Web アプリ URL）を更新、
+      # なければ新しいデプロイを作る。
+      - name: clasp deploy
+        env:
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
+        run: |
+          DESC="GitHub Actions ${GITHUB_SHA::7} (run ${GITHUB_RUN_NUMBER})"
+          if [ -n "$DEPLOYMENT_ID" ]; then
+            clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "$DESC"
+          else
+            clasp deploy --description "$DESC"
+          fi
+          clasp deployments
