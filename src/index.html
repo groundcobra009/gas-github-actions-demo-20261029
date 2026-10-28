@@ -9,15 +9,19 @@
       th, td { border: 1px solid #ccc; padding: 6px 12px; text-align: right; }
       th:first-child, td:first-child { text-align: left; }
       .meta { color: #666; font-size: 12px; }
+      .version { display: inline-block; background: #e6f4ea; color: #137333; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
+      .total td { font-weight: bold; background: #f6f6f6; }
     </style>
   </head>
   <body>
     <h1>GAS サンプル（GitHub Actions からデプロイ）</h1>
+    <p class="version">バージョン: <?= version ?></p>
     <table>
       <tr><th>品目</th><th>数量</th><th>売上</th></tr>
       <? summary.forEach(function (r) { ?>
         <tr><td><?= r.item ?></td><td><?= r.qty ?></td><td><?= r.amount.toLocaleString() ?> 円</td></tr>
       <? }); ?>
+      <tr class="total"><td>合計</td><td></td><td><?= total.toLocaleString() ?> 円</td></tr>
     </table>
     <p class="meta">commit: <?= buildInfo.commit ?> / deployed: <?= buildInfo.deployedAt ?></p>
   </body>
