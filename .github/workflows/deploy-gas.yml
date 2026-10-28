@@ -28,20 +28,21 @@ jobs:
       - name: Install clasp
         run: npm install -g @google/clasp@3.4.1
 
-      # ~/.clasprc.json の中身（clasp login 後のファイル）をシークレットから復元する。
-      # シークレット名は CLASPRC_JSON を想定。別名で登録している場合のために候補も見る。
+      # ~/.clasprc.json（clasp login 後のファイル）をシークレットから復元する。
+      # CLASPRC_JSON_BASE64: base64 エンコードした中身（`base64 -i ~/.clasprc.json` の出力）
       - name: Write ~/.clasprc.json
         env:
-          CLASPRC: ${{ secrets.CLASPRC_JSON || secrets.CLASPRC || secrets.CLASP_CREDENTIALS || secrets.CLASP_TOKEN }}
+          CLASPRC_B64: ${{ secrets.CLASPRC_JSON_BASE64 }}
         run: |
-          if [ -z "$CLASPRC" ]; then
-            echo "::error::clasp の認証情報シークレットが見つかりません（CLASPRC_JSON に ~/.clasprc.json の中身を登録してください）"
+          if [ -z "$CLASPRC_B64" ]; then
+            echo "::error::シークレット CLASPRC_JSON_BASE64 が見つかりません"
             exit 1
           fi
-          printf '%s' "$CLASPRC" > ~/.clasprc.json
+          printf '%s' "$CLASPRC_B64" | tr -d ' \r\n' | base64 -d > ~/.clasprc.json \
+            || { echo "::error::CLASPRC_JSON_BASE64 を base64 としてデコードできません"; exit 1; }
           chmod 600 ~/.clasprc.json
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json', 'utf8'))" \
-            || { echo "::error::シークレットの中身が JSON として読めません"; exit 1; }
+            || { echo "::error::デコード結果が JSON として読めません（~/.clasprc.json を base64 したものか確認）"; exit 1; }
 
       - name: Stamp build info
         run: |

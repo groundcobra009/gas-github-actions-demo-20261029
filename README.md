@@ -19,7 +19,7 @@ Google Apps Script のサンプルを GitHub Actions + clasp でデプロイす�
 
 `main` か `claude/**` ブランチに `src/` などの変更が push されると、または Actions 画面から手動実行（workflow_dispatch）すると:
 
-1. シークレットから `~/.clasprc.json` を復元
+1. シークレット `CLASPRC_JSON_BASE64` をデコードして `~/.clasprc.json` を復元
 2. `src/BuildInfo.js` にコミットと日時を書き込む
 3. `clasp push --force`
 4. `clasp deploy`（`DEPLOYMENT_ID` シークレットがあればそのデプロイを更新、なければ新規作成）
@@ -28,9 +28,7 @@ Google Apps Script のサンプルを GitHub Actions + clasp でデプロイす�
 
 | 名前 | 必須 | 中身 |
 |---|---|---|
-| `CLASPRC_JSON` | ○ | ローカルで `clasp login` した後の `~/.clasprc.json` の中身全体 |
+| `CLASPRC_JSON_BASE64` | ○ | ローカルで `clasp login` した後の `~/.clasprc.json` を base64 にしたもの（`base64 -i ~/.clasprc.json`） |
 | `DEPLOYMENT_ID` | 任意 | 更新し続けたい既存デプロイの ID（`AKfycb...`）。Web アプリの URL を固定したいとき |
-
-`CLASPRC_JSON` が無い場合は `CLASPRC` / `CLASP_CREDENTIALS` / `CLASP_TOKEN` の名前も順に見る。
 
 Google アカウント側で Apps Script API をオンにしておくこと: <https://script.google.com/home/usersettings>
