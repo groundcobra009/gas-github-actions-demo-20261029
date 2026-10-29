@@ -10,12 +10,14 @@
       th:first-child, td:first-child { text-align: left; }
       .meta { color: #666; font-size: 12px; }
       .version { display: inline-block; background: #e6f4ea; color: #137333; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
+      .pick { font-size: 18px; color: #b06000; font-weight: bold; }
       .total td { font-weight: bold; background: #f6f6f6; }
     </style>
   </head>
   <body>
     <h1>GAS サンプル（GitHub Actions からデプロイ）</h1>
     <p class="version">バージョン: <?= version ?></p>
+    <p class="pick">今日のおすすめ: <?= pick ?></p>
     <table>
       <tr><th>品目</th><th>数量</th><th>売上</th></tr>
       <? summary.forEach(function (r) { ?>

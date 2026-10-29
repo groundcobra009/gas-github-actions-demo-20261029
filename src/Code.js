@@ -1,3 +1,8 @@
+// ===== 変更メモ =====
+// 2026年10月29日 10時09分、TBS内で書いた。
+// v3: バージョン表記を更新し、サンプルに「今日のおすすめ」（売上トップの品目）を追加。
+// ====================
+
 // ===== GitHub Actions + clasp デプロイ：うまくいったときのメモ（2026-10-29） =====
 // ・流れ: src/ を push → Actions「Deploy GAS with clasp」→ clasp push --force → clasp deploy
 // ・認証: ローカルで clasp login → ~/.clasprc.json を base64 にしてシークレット CLASPRC_JSON_BASE64 に登録
@@ -16,7 +21,7 @@
  */
 
 // 画面と JSON に出すので、デプロイで差し替わったかひと目でわかる
-const APP_VERSION = 'v2（コード書き換え後の再デプロイ）';
+const APP_VERSION = 'v3（10/29 10:09 TBS内で書いた版）';
 
 const SAMPLE_SALES = [
   { date: '2026-10-01', item: 'りんご', qty: 12, price: 150 },
@@ -27,6 +32,7 @@ const SAMPLE_SALES = [
   { date: '2026-10-04', item: 'みかん', qty: 25, price: 80 },
   { date: '2026-10-05', item: '柿', qty: 15, price: 120 },
   { date: '2026-10-05', item: 'ぶどう', qty: 3, price: 600 },
+  { date: '2026-10-06', item: '梨', qty: 10, price: 250 },
 ];
 
 /** 品目ごとの数量・売上合計を返す */
@@ -41,6 +47,12 @@ function summarizeSales(rows) {
     .sort(function (a, b) { return b.amount - a.amount; });
 }
 
+/** 売上トップの品目を「今日のおすすめ」として返す */
+function todaysPick(summary) {
+  const top = summary[0];
+  return top ? top.item + '（売上 ' + top.amount.toLocaleString() + ' 円）' : 'なし';
+}
+
 /** 全体の売上合計 */
 function totalAmount(summary) {
   return summary.reduce(function (sum, r) { return sum + r.amount; }, 0);
@@ -52,6 +64,7 @@ function helloFromGitHubActions() {
   Logger.log('Deployed via GitHub Actions + clasp: ' + APP_VERSION + ' / commit ' + BUILD_INFO.commit);
   Logger.log(JSON.stringify(summary, null, 2));
   Logger.log('合計: ' + totalAmount(summary) + ' 円');
+  Logger.log('今日のおすすめ: ' + todaysPick(summary));
   return summary;
 }
 
@@ -76,6 +89,7 @@ function doGet(e) {
       commit: BUILD_INFO.commit,
       deployedAt: BUILD_INFO.deployedAt,
       total: totalAmount(summary),
+      pick: todaysPick(summary),
       summary: summary,
     }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -83,6 +97,7 @@ function doGet(e) {
   const t = HtmlService.createTemplateFromFile('index');
   t.summary = summary;
   t.total = totalAmount(summary);
+  t.pick = todaysPick(summary);
   t.version = APP_VERSION;
   t.buildInfo = BUILD_INFO;
   return t.evaluate().setTitle('GAS sample');
